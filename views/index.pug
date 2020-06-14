@@ -1,15 +1,19 @@
-html
-    head
-        title= title
-    style
-        include style.css
-    body
-        h1= message
-        img(src=headerMeme.url)
-        h1="Meme list"
-        ul
-            each meme in memes
-                li
-                    a(href="meme/" + meme.id)
-                        img(src=meme.url)
-                    p= 'Price: ' + meme.prices[meme.prices.length - 1]
+extends layout
+
+block content
+    if user
+        p Welcome #{user} in Meme market!
+            a(href="logout") logout
+    else
+        p Login first
+        form(method="post")
+            input(type="text" name="login")
+            input(type="submit", value="In")
+    img(src=headerMeme.url)
+    h1="Meme list"
+    ul
+        each meme in memes
+            li
+                a(href="meme/" + meme.id)
+                    img(src=meme.url)
+                p= 'Price: ' + meme.price
