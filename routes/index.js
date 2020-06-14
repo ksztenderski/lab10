@@ -1,39 +1,72 @@
 var express = require('express');
 var router = express.Router();
-
-function get_meme(memes, id) {
-    return memes.find(meme => meme.id === id);
-}
+var csrf = require('csurf')
+var csrfProtection = csrf({cookie: true})
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
-    let memes = req.app.get('memes');
-    memes.sort((a, b) => b.prices[b.prices.length - 1] - a.prices[a.prices.length - 1]);
-    res.render('index', {
-        title: 'Meme market',
-        message: 'Hello there!',
-        memes: memes.slice(0, 3),
-        headerMeme: req.app.get('headerMeme')
+    if (req.session.count !== undefined) {
+        ++req.session.count;
+    }
+    req.db.all("SELECT * FROM memes ORDER BY price DESC LIMIT 3", function (err, memes) {
+        res.render('index', {
+            title: 'Meme market',
+            count: req.session.count,
+            user: req.session.login,
+            message: 'Hello there!',
+            memes: memes,
+            headerMeme: req.app.get('headerMeme')
+        });
     });
 });
 
-router.get('/meme/:memeId', function (req, res) {
-    let meme = get_meme(req.app.get('memes'), parseInt(req.params.memeId));
-    if (meme !== undefined) {
-        res.render('meme', {meme: meme});
-    } else {
-        res.render('meme_not_found', {id: req.params.memeId});
+router.post('/', function (req, res, next) {
+    req.db.get("SELECT * FROM users WHERE username = ?", [req.body.login],
+        function (err, row) {
+            if (row !== undefined) {
+                req.session.login = req.body.login;
+                req.session.user_id = row.id;
+                req.session.count = 0;
+            }
+            res.redirect('/');
+        });
+});
+
+router.get('/logout', function (req, res, next) {
+    delete (req.session.count);
+    delete (req.session.login);
+    delete (req.session.user_id);
+    res.redirect('/');
+});
+
+router.get('/meme/:memeId', csrfProtection, function (req, res) {
+    if (req.session.count !== undefined) {
+        ++req.session.count;
     }
+    req.db.get("SELECT * FROM memes WHERE id = ?", [req.params.memeId], function (err, row) {
+        if (row !== undefined) {
+            req.db.all("SELECT * FROM history WHERE meme_id = ? ORDER BY date", [req.params.memeId], function (err2, history) {
+                res.render('meme', {
+                    meme: row,
+                    history: history,
+                    user: req.session.login,
+                    count: req.session.count,
+                    csrfToken: req.csrfToken()
+                });
+            })
+        } else {
+            res.render('meme_not_found', {
+                id: req.params.memeId,
+                count: req.session.count,
+            });
+        }
+    });
 })
 
-router.post('/meme/:memeId', function (req, res) {
-    let meme = get_meme(req.app.get('memes'), parseInt(req.params.memeId));
-    let price = req.body.price;
-    console.log(meme.prices);
-    meme.change_price(price);
-    console.log(meme.prices);
-    console.log(req.body.price);
-    res.render('meme', {meme: meme})
+router.post('/meme/:memeId', csrfProtection, function (req, res) {
+    req.db.run("INSERT INTO history VALUES(?, ?, ?, (SELECT date('now')))", [req.params.memeId, req.session.user_id, req.body.price]);
+    req.db.run("UPDATE memes SET price = ? WHERE id = ?", [req.body.price, req.params.memeId]);
+    res.redirect('/meme/' + req.params.memeId);
 })
 
 module.exports = router;
