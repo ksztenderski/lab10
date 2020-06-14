@@ -64,8 +64,11 @@ router.get('/meme/:memeId', csrfProtection, function (req, res) {
 })
 
 router.post('/meme/:memeId', csrfProtection, function (req, res) {
-    req.db.run("INSERT INTO history VALUES(?, ?, ?, (SELECT date('now')))", [req.params.memeId, req.session.user_id, req.body.price]);
-    req.db.run("UPDATE memes SET price = ? WHERE id = ?", [req.body.price, req.params.memeId]);
+    if (req.session.login !== undefined) {
+        req.db.run("INSERT INTO history VALUES(?, ?, ?, (SELECT date('now')))", [req.params.memeId, req.session.user_id, req.body.price]);
+        req.db.run("UPDATE memes SET price = ? WHERE id = ?", [req.body.price, req.params.memeId]);
+    }
+
     res.redirect('/meme/' + req.params.memeId);
 })
 

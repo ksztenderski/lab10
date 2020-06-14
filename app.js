@@ -61,7 +61,7 @@ app.use(session({
     resave: true,
     saveUninitialized: false,
     store: new SQLiteStore,
-    secret: 'sAn7baRbhx4',
+    secret: 'aWWTPfTVKg5TDOWwyTOIBlTu0BxBKoprjYpfohAbvWJlHBuUwR',
     cookie: {maxAge: 15 * 60 * 1000}
 }));
 app.use(function (req, res, next) {
